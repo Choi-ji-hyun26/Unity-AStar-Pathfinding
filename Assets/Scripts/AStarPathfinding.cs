@@ -5,15 +5,15 @@ using UnityEngine;
 
 public class AStarPathfinding : MonoBehaviour
 {
-    Grid grid;
-    public void Awake()
+    private Grid grid;
+    [Header("Debug Info")]
+    public List<Node> lastFullGridPath = new List<Node>();
+    public List<Node> lastSmoothedPath = new List<Node>();
+
+    private void Awake()
     {
         grid = GetComponent<Grid>();
     }
-
-    // 디버깅을 위해 클래스 상단에 추가
-    public List<Node> lastFullGridPath = new List<Node>();
-    public List<Node> lastSmoothedPath = new List<Node>();
 
     public List<Node> FindPath(Vector3 startPos, Vector3 targetPos)
     {
@@ -30,10 +30,6 @@ public class AStarPathfinding : MonoBehaviour
 
         // 노드를 제대로 가져오지 못했다면 바로 종료
         if (startNode == null || targetNode == null) return null;
-
-        // 시작 노드 설정
-        startNode.gCost = 0;
-        //nodesToReset.Add(startNode);
 
         MinHeap openList = new MinHeap();
         HashSet<Node> closedList = new HashSet<Node>();
@@ -52,7 +48,7 @@ public class AStarPathfinding : MonoBehaviour
                 lastFullGridPath = RetracePath(startNode, targetNode);
                 
                 // 2. 스위치에 따라 스무딩 적용
-                if (PathfindingManager.Instance.useSmoothing)
+                if (PathfindingManager.Instance != null && PathfindingManager.Instance.useSmoothingProperty)
                 {
                     lastSmoothedPath = GetSimplifiedPath(lastFullGridPath);
                     return lastSmoothedPath;

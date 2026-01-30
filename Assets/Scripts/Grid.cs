@@ -5,15 +5,17 @@ using UnityEngine;
 
 public class Grid : MonoBehaviour
 {
+    [Header("Grid Configuration")]
     public LayerMask wallMask;
     public Vector2 gridWorldSize;
     public float nodeRadius;
-    public Node[,] grid;
     
-    float nodeDiameter;
-    int gridSizeX, gridSizeY;
+    [HideInInspector] public Node[,] grid;
+    
+    private float nodeDiameter;
+    private int gridSizeX, gridSizeY;
 
-    public void Awake()
+    private void Awake()
     {
         nodeDiameter = nodeRadius * 2;
         gridSizeX = Mathf.FloorToInt(gridWorldSize.x / nodeDiameter);
@@ -78,25 +80,33 @@ public class Grid : MonoBehaviour
     }
     public Node NodeFromWorldPoint(Vector3 worldPosition)
     {
-        // 1. grid 배열이 아직 생성되지 않았다면 null 반환
+        // grid 배열이 아직 생성되지 않았다면 null 반환
         if (grid == null) 
         {
-            Debug.LogWarning("Grid가 아직 생성되지 않았습니다!");
+            //Debug.LogWarning("Grid가 아직 생성되지 않았습니다!");
             return null;
         }
         // 0~1 사이의 비율로 변환
         float percentX = (worldPosition.x - transform.position.x + gridWorldSize.x / 2) / gridWorldSize.x;
         float percentY = (worldPosition.y - transform.position.y + gridWorldSize.y / 2) / gridWorldSize.y;
 
-        // 맵 밖을 클릭했을 때 에러 방지
-        percentX = Mathf.Clamp01(percentX);
-        percentY = Mathf.Clamp01(percentY);
+        int x = Mathf.RoundToInt((gridSizeX - 1) * percentX);
+        int y = Mathf.RoundToInt((gridSizeY - 1) * percentY);
 
-        int x = Mathf.FloorToInt((gridSizeX - 1) * percentX);
-        int y = Mathf.FloorToInt((gridSizeY - 1) * percentY);
+        x = Mathf.Clamp(x, 0, gridSizeX - 1);
+        y = Mathf.Clamp(y, 0, gridSizeY - 1);
 
         return grid[x,y];
     }
+
+    public void UpdateNodeObstacle(Vector3 worldPos, bool isWalkable)
+    {
+        Node node = NodeFromWorldPoint(worldPos);
+        if(node != null){
+            node.isWalkable = isWalkable;
+        }
+    }
+
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;

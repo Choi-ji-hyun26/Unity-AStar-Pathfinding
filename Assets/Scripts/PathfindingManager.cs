@@ -5,23 +5,37 @@ using UnityEngine;
 
 public class PathfindingManager : MonoBehaviour
 {
-    public static PathfindingManager Instance;
+    public static PathfindingManager Instance { get; private set; }
     
     [Header("Settings")]
-    public bool useSmoothing = true;
-    public bool showDebugVisuals = true;
+    [SerializeField] private bool useSmoothing = true;
+    public bool useSmoothingProperty => useSmoothing; // Unit 등에서 참조할 경우를 대비한 읽기 전용 프로퍼티
+    [SerializeField] private bool showDebugVisuals = true;
 
-    public Unit unit; // 캐릭터의 Unit 스크립트
-    public Transform target; // 목적지
-    AStarPathfinding pathFinding;
+    [Header("References")]
+    [SerializeField] private Unit unit; // 캐릭터의 Unit 스크립트
+    [SerializeField] private Transform target; // 목적지
+    [SerializeField] private LineRenderer lineRenderer;
+    public LineRenderer lineRendererProperty => lineRenderer; // Unit 등에서 참조할 경우를 대비한 읽기 전용 프로퍼티
+
+    private AStarPathfinding pathFinding;
     private List<Node> finalPath;
-
-    public LineRenderer lineRenderer;
+    private Camera mainCamera;
 
     public void Awake()
     {
-        Instance = this;
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         pathFinding = GetComponent<AStarPathfinding>();
+        mainCamera = Camera.main;
     }
 
     public void Update()
@@ -29,7 +43,7 @@ public class PathfindingManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             //  마우스 클릭 지점을 월드 좌표로 변환 (2D 기준)
-            Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector3 mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
             mousePos.z = 0;
             //  타겟 위치를 마우스 클릭 지점으로 옮김
             target.position = mousePos;
@@ -40,18 +54,26 @@ public class PathfindingManager : MonoBehaviour
             {
                 finalPath = path;
                 unit.OnPathFound(path);
-
                 DrawPathLine();
             }
         }
     }
+
+    public void RequestPath(Vector3 pathStart, Vector3 pathEnd, System.Action<List<Node>> callback)
+    {
+        List<Node> newPath = pathFinding.FindPath(pathStart, pathEnd);
+
+        if(newPath != null)
+            callback?.Invoke(newPath);
+    }
+
     //  찾은 경로를 시각적으로 확인하기 위한 기즈모
     public void OnDrawGizmos()
     {
         // 디버그 시각화가 꺼져있거나 알고리즘 객체가 없으면 그리지 않음
         if (!showDebugVisuals || pathFinding == null) return;
 
-        // 1. [원본 격자 경로] - 회색 실선으로 표시 (지그재그 확인용)
+        // 1. 원본 격자 경로, 회색 실선으로 표시 (지그재그 확인용)
         if (pathFinding.lastFullGridPath != null && pathFinding.lastFullGridPath.Count > 0)
         {
             Gizmos.color = new Color(0.5f, 0.5f, 0.5f, 0.8f); // 약간 투명한 회색
@@ -64,7 +86,7 @@ public class PathfindingManager : MonoBehaviour
             }
         }
 
-        // 2. [최종 결과 경로] - 하늘색/파란색 굵은 표시
+        // 2. 최종 결과 경로, 하늘색/파란색 굵은 표시
         if (finalPath != null && finalPath.Count > 0)
         {
             // 스무딩 여부에 따라 색상 변경 (스무딩 중이면 파란색, 아니면 하늘색)
@@ -84,19 +106,9 @@ public class PathfindingManager : MonoBehaviour
             // 마지막 노드에도 구체 그리기
             Gizmos.DrawSphere(new Vector3(finalPath[finalPath.Count-1].worldPosition.x, finalPath[finalPath.Count-1].worldPosition.y, -0.5f), 0.25f);
         }
-        // if(finalPath != null)
-        // {
-        //     Gizmos.color = Color.cyan;
-        //     foreach(Node node in finalPath)
-        //     {
-        //         // 겹침 방지를 위해 위치를 살짝 위로 올리고 크기를 키움
-        //         Vector3 pos = new Vector3(node.worldPosition.x, node.worldPosition.y, -0.5f);
-        //         Gizmos.DrawCube(pos, Vector3.one * 0.7f);
-        //     }
-        // }
     }
 
-    void DrawPathLine()
+    private void DrawPathLine()
     {
         if (finalPath == null || finalPath.Count == 0) return;
 
