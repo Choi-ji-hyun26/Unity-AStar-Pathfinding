@@ -73,7 +73,6 @@
 - **Grey Line** : 알고리즘이 계산한 원본 격자 경로 (`Gizmos`)
   
 ---
+<img width="720" height="336" alt="GizmosOn" src="https://github.com/user-attachments/assets/06ff9b0b-5fcb-4548-bb39-6bf0a1297868" />
+<img width="703" height="347" alt="GizmosOff" src="https://github.com/user-attachments/assets/45f64249-eb18-4964-94d8-b2ed702f961a" />
 
-![image.png](attachment:a22e4e62-554c-4460-9b76-dc0f8163ae7c:image.png)
-
-![image.png](attachment:3765144c-68bd-427c-8520-fe871ea2a89c:image.png)
