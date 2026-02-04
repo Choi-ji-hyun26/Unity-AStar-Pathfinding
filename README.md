@@ -25,7 +25,7 @@
 
 ---
 
-1. **Optimized A* Search with Min-Heap**
+1. **Optimized A\* Search with Min-Heap**
 - **설계 의도** : Unity C# 환경에서 기본 우선순위 큐 라이브러리를 사용하지 않고 GC 발생과 내부 동작을 직접 제어하기 위해 Min-Heap을 직접 구현
 - **성능 최적화** : Open List의 노드 탐색 비용을 O(n)에서 O(log n)으로 단축하기 위해 직접 **Min-Heap**을 구현
 - **효율성** : 대규모 그리드 맵에서도 프레임 드랍 없이 최단 경로를 산출
