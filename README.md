@@ -30,21 +30,15 @@
 - **성능 최적화** : Open List의 노드 탐색 비용을 O(n)에서 O(log n)으로 단축하기 위해 직접 **Min-Heap**을 구현
 - **효율성** : 대규모 그리드 맵에서도 프레임 드랍 없이 최단 경로를 산출
 
----
-
-1. **Path Smoothing (Line-of-Sight)**
+2. **Path Smoothing (Line-of-Sight)**
 - **자연스러운 이동** : 격자 기반 경로의 단점인 지그재그 움직임을 해결하기 위해 **CircleCast**를 활용한 시야 검사 로직 적용
 - **결과** : 불필요한 경유지를 생략하고 실제 유닛 이동에 적합한 직선 위주의 부드러운 경로를 생성
 
----
-
-1. **Dynamic Obstacle Handling**
+3. **Dynamic Obstacle Handling**
 - **실시간 대응** : 유닛이 이동 중일 때 경로 상에 새로운 벽이 생기면 이를 즉시 감지(`IsPathBlocked`)
 - **자동 재탐색** : 장애물을 인지한 즉시 현재 위치에서 목적지까지의 새로운 최적 경로를 재계산
 
----
-
-1. **Pixel-Perfect Synchronization**
+4. **Pixel-Perfect Synchronization**
 - **데이터 일치** : Tilemap.GetCellCenterWorld를 활용하여 유니티 타일맵과 내부 그리드 노드 좌표를 1:1로 정밀 동기화
 - **정확도** : 사용자가 클릭한 타일의 시각적 위치와 논리적 데이터가 어긋나지 않도록 설계
 
@@ -67,6 +61,8 @@
 ---
 
 ### 📺 Preview & Visuals
+
+---
 
 - **Red/White Nodes** : 장애물(Red)과 이동 가능 구역(White) 시각화
 - **Blue Line** : 스무딩이 적용된 최종 이동 경로 (`LineRenderer`)
