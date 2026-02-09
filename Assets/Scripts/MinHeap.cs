@@ -1,98 +1,75 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
-using UnityEngine;
 
-public class MinHeap
+public class MinHeap<T> where T : IHeapItem<T>
 {
-    List<Node> items = new List<Node>(); // 데이터를 저장할 리스트
+    // List 대신 배열을 사용하여 메모리 할당 및 접근 성능을 최적화    
+    private T[] items;
+    private int currentItemCount;
 
-    public void Push(Node item)
+    public MinHeap(int maxHeapSize)
     {
-        item.heapIndex = items.Count;
-        items.Add(item);
-        SiftUp(item); // 위로 올리며 정렬
+        items = new T[maxHeapSize];
     }
 
-    public Node Pop()
+    public void Push(T item)
     {
-        if (Count == 0)
-            return null;
+        item.HeapIndex = currentItemCount;
+        items[currentItemCount] = item;
 
-        Node firstItem = items[0]; // 최솟값(우선순위 가장 높음) 저장
-        int lastIndex = items.Count - 1;
+        SortUp(item);
+        currentItemCount++;
+    }
 
+    public T Pop()
+    {
+        T firstItem = items[0];
 
-        items[0] = items[lastIndex]; // 마지막 아이템을 루트로 이동
-        items[0].heapIndex = 0;
-        items.RemoveAt(lastIndex); // 리스트 마지막 요소 제거
+        currentItemCount--;
+        items[0] = items[currentItemCount];
+        items[0].HeapIndex = 0;
 
-        if (items.Count > 0)
-            SiftDown(items[0]); // 아래로 내리며 정렬  
-
+        SortDown(items[0]);
         return firstItem;
     }
 
-    public void UpdateItem(Node item)
+    public void UpdateItem(T item)
     {
-        SiftUp(item); // A*에서는 보통 비용이 줄어들기만 하므로 위로만 올리면 됨
+        SortUp(item);
     }
 
-    public bool Contains(Node item)
+    public int Count => currentItemCount;
+
+    public bool Contains(T item)
     {
-        if (item.heapIndex < items.Count)
-            return items[item.heapIndex] == item;
-        return false;
+        return Equals(items[item.HeapIndex], item);
     }
 
-    public void SiftUp(Node item)
-    {
-        int parentIndex = (item.heapIndex - 1) / 2;
-
-        while (item.heapIndex > 0)
-        {
-            Node parentItem = items[parentIndex];
-            if (item.fCost < parentItem.fCost || (item.fCost == parentItem.fCost && item.hCost < parentItem.hCost))
-            {
-                Swap(item, parentItem);
-            }
-            else
-            {
-                break;
-            }
-
-            parentIndex = (item.heapIndex - 1) / 2;
-        }
-    }
-    public void SiftDown(Node item)
+    private void SortDown(T item)
     {
         while (true)
         {
-            int childLeftIndex = item.heapIndex * 2 + 1;
-            int childRightIndex = item.heapIndex * 2 + 2;
+            int leftChildIndex = item.HeapIndex * 2 + 1;
+            int rightChildIndex = item.HeapIndex * 2 + 2;
             int swapIndex = 0;
 
-            if (childLeftIndex < items.Count)
+            // 왼쪽 자식이 존재하지 않으면 더 이상 내려갈 수 없음
+            if (leftChildIndex >= currentItemCount)
+                return;
+
+            swapIndex = leftChildIndex;
+
+            // 오른쪽 자식이 존재하고 더 낮은 우선순위를 가진 경우 교체 대상 변경
+            if (rightChildIndex < currentItemCount &&
+                items[rightChildIndex].CompareTo(items[leftChildIndex]) > 0)
             {
-                swapIndex = childLeftIndex;
+                swapIndex = rightChildIndex;
+            }
 
-                if (childRightIndex < items.Count)
-                {
-                    if (items[childRightIndex].fCost < items[childLeftIndex].fCost ||
-                        (items[childRightIndex].fCost == items[childLeftIndex].fCost && items[childRightIndex].hCost < items[childLeftIndex].hCost))
-                    {
-                        swapIndex = childRightIndex;
-                    }
-                }
-
-                if (item.fCost > items[swapIndex].fCost ||
-                    (item.fCost == items[swapIndex].fCost && item.hCost > items[swapIndex].hCost))
-                {
-                    Swap(item, items[swapIndex]);
-                }
-                else
-                {
-                    return;
-                }
+            // 현재 노드보다 자식 노드의 우선순위가 낮으면 교환
+            if (item.CompareTo(items[swapIndex]) < 0)
+            {
+                Swap(item, items[swapIndex]);
             }
             else
             {
@@ -101,15 +78,34 @@ public class MinHeap
         }
     }
 
-    private void Swap(Node itemA, Node itemB)
+    private void SortUp(T item)
     {
-        items[itemA.heapIndex] = itemB;
-        items[itemB.heapIndex] = itemA;
+        int parentIndex = (item.HeapIndex - 1) / 2;
 
-        int tempIndex = itemA.heapIndex;
-        itemA.heapIndex = itemB.heapIndex;
-        itemB.heapIndex = tempIndex;
+        while (item.HeapIndex > 0)
+        {
+            T parentItem = items[parentIndex];
+
+            // CompareTo 결과를 기준으로 우선순위 비교
+            if (item.CompareTo(parentItem) > 0)
+            {
+                Swap(item, parentItem);
+                parentIndex = (item.HeapIndex - 1) / 2;
+            }
+            else
+            {
+                break;
+            }
+        }
     }
 
-    public int Count => items.Count;
+    private void Swap(T itemA, T itemB)
+    {
+        items[itemA.HeapIndex] = itemB;
+        items[itemB.HeapIndex] = itemA;
+
+        int tempIndex = itemA.HeapIndex;
+        itemA.HeapIndex = itemB.HeapIndex;
+        itemB.HeapIndex = tempIndex;
+    }
 }
