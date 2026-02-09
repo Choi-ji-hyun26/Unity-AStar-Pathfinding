@@ -1,11 +1,15 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class AStarPathfinding : MonoBehaviour
 {
     private Grid grid;
+    
+    // [최적화] 탐색에 참여한 노드들만 기록하여 다음 탐색 시 초기화에 사용
+    private List<Node> nodesToReset = new List<Node>();
+
     [Header("Debug Info")]
     public List<Node> lastFullGridPath = new List<Node>();
     public List<Node> lastSmoothedPath = new List<Node>();
@@ -17,21 +21,26 @@ public class AStarPathfinding : MonoBehaviour
 
     public List<Node> FindPath(Vector3 startPos, Vector3 targetPos)
     {
-        // 모든 노드의 비용과 부모 정보를 초기화
-        foreach (Node n in grid.grid)
+        // 1. [최적화] 이전 탐색에서 변경된 노드들의 데이터만 정밀 초기화
+        for (int i = 0; i < nodesToReset.Count; i++)
         {
-            n.gCost = 0;
-            n.hCost = 0;
-            n.parent = null;
+            nodesToReset[i].gCost = int.MaxValue; // 무한대로 초기화
+            nodesToReset[i].hCost = 0;
+            nodesToReset[i].parent = null;
         }
+        nodesToReset.Clear();
 
         Node startNode = grid.NodeFromWorldPoint(startPos);
         Node targetNode = grid.NodeFromWorldPoint(targetPos);
 
-        // 노드를 제대로 가져오지 못했다면 바로 종료
         if (startNode == null || targetNode == null) return null;
 
-        MinHeap openList = new MinHeap();
+        // 시작 노드 설정
+        startNode.gCost = 0;
+        nodesToReset.Add(startNode);
+
+        // [리팩토링] Generic Heap 사용 (MaxSize는 Grid.cs에 public int MaxSize => gridSizeX * gridSizeY; 추가 필요)
+        MinHeap<Node> openList = new MinHeap<Node>(grid.MaxSize);
         HashSet<Node> closedList = new HashSet<Node>();
 
         openList.Push(startNode);
@@ -41,13 +50,12 @@ public class AStarPathfinding : MonoBehaviour
             Node currentNode = openList.Pop();
             closedList.Add(currentNode);
 
-            // 목적지 도착 시 경로 역추적 시작
             if (currentNode == targetNode)
             {
-                // 1. 원본 격자 경로 저장
+                // 목적지 도달 시 경로 역추적
                 lastFullGridPath = RetracePath(startNode, targetNode);
                 
-                // 2. 스위치에 따라 스무딩 적용
+                // Path Smoothing 적용 여부 확인
                 if (PathfindingManager.Instance != null && PathfindingManager.Instance.useSmoothingProperty)
                 {
                     lastSmoothedPath = GetSimplifiedPath(lastFullGridPath);
@@ -55,7 +63,7 @@ public class AStarPathfinding : MonoBehaviour
                 }
                 else
                 {
-                    lastSmoothedPath = new List<Node>(); // 스무딩 미사용 시 비워둠
+                    lastSmoothedPath = new List<Node>();
                     return lastFullGridPath;
                 }
             }
@@ -64,26 +72,33 @@ public class AStarPathfinding : MonoBehaviour
             {
                 if (!neighbor.isWalkable || closedList.Contains(neighbor))
                     continue;
-                // 새로운 경로를 통한 이웃 노드까지의 이동 비용 계산
+
                 int newMovementCostToNeighbor = currentNode.gCost + GetDistance(currentNode, neighbor);
 
-                // 더 짧은 경로를 발견한 경우 (최초 방문 시에 gCost가 무한대 -> 무조건 통과)
-                bool isNewNode = !openList.Contains(neighbor);
-                if (isNewNode || newMovementCostToNeighbor < neighbor.gCost)
+                // gCost 초기값이 int.MaxValue이므로 처음 방문 노드는 무조건 아래 조건문 통과
+                if (newMovementCostToNeighbor < neighbor.gCost)
                 {
+                    bool isNewNode = neighbor.gCost == int.MaxValue;
+
                     neighbor.gCost = newMovementCostToNeighbor;
                     neighbor.hCost = GetDistance(neighbor, targetNode);
-                    neighbor.parent = currentNode; // 경로 역추적을 위해 부모 기록
+                    neighbor.parent = currentNode;
 
                     if (isNewNode)
+                    {
                         openList.Push(neighbor);
+                        nodesToReset.Add(neighbor); // 초기화 대상에 추가
+                    }
                     else
-                        openList.UpdateItem(neighbor); // 힙 내에서 위치 갱신
+                    {
+                        openList.UpdateItem(neighbor); // 힙 위치 갱신 (O(log n))
+                    }
                 }
             }
         }
-        return null; // 경로를 찾지 못한 경우
+        return null;
     }
+
     private List<Node> RetracePath(Node startNode, Node endNode)
     {
         List<Node> path = new List<Node>();
@@ -98,41 +113,40 @@ public class AStarPathfinding : MonoBehaviour
         path.Reverse();
         return path;
     }
+
     private bool CheckLineOfSight(Node a, Node b)
     {
-        // 두 노드 사이의 방향과 거리 계산
         Vector3 dir = b.worldPosition - a.worldPosition;
         float dist = Vector3.Distance(a.worldPosition, b.worldPosition);
 
-        // Raycast를 쏘아 wallMask(장애물)에 걸리는지 확인
-        // 원형 캐릭터 부피를 고려해 CircleCast 쓰면 더 정확
-        RaycastHit2D hit = Physics2D.CircleCast(a.worldPosition, (float)(grid.nodeRadius * 0.5), dir, dist, grid.wallMask);
+        // CircleCast를 통해 유닛의 반지름(nodeRadius * 0.5)을 고려한 직선 시야 검사
+        RaycastHit2D hit = Physics2D.CircleCast(a.worldPosition, (float)(grid.nodeRadius * 0.4f), dir, dist, grid.wallMask);
         return hit.collider == null;
     }
+
     private List<Node> GetSimplifiedPath(List<Node> fullPath)
     {
-        if(fullPath.Count < 3) return fullPath; // 노드가 2개 이하인 경우는 줄일 게 없음
+        if (fullPath.Count < 3) return fullPath;
 
         List<Node> simplifiedPath = new List<Node>();
-        simplifiedPath.Add(fullPath[0]); // 시작점 추가
+        simplifiedPath.Add(fullPath[0]);
 
         int current = 0;
-        while(current < fullPath.Count - 1)
+        while (current < fullPath.Count - 1)
         {
-            bool foundNext = false; // 안전장치 변수
-            // 현재 위치에서 가장 멀리 있는 노드부터 역순으로 시야 검사
-            for(int i = fullPath.Count - 1; i > current; i--)
+            bool foundNext = false;
+            // 가장 멀리 있는 노드부터 역순으로 탐색하여 직선으로 갈 수 있는 가장 먼 지점 탐색
+            for (int i = fullPath.Count - 1; i > current; i--)
             {
-                if(CheckLineOfSight(fullPath[current], fullPath[i]))
+                if (CheckLineOfSight(fullPath[current], fullPath[i]))
                 {
                     simplifiedPath.Add(fullPath[i]);
-                    current = i; // 시야가 확보된 가장 먼 곳으로 점프
+                    current = i;
                     foundNext = true;
                     break;
                 }
             }
 
-            // 만약 어떤 노드와도 시야가 확보되지 않는다면 (이론상 불가능하지만 에러 방지용)
             if (!foundNext)
             {
                 current++;
@@ -142,7 +156,6 @@ public class AStarPathfinding : MonoBehaviour
         return simplifiedPath;
     }
 
-    // 두 노드 간의 거리 계산 (상하좌우 10, 대각선 14)
     private int GetDistance(Node nodeA, Node nodeB)
     {
         int dstX = Mathf.Abs(nodeA.gridX - nodeB.gridX);
