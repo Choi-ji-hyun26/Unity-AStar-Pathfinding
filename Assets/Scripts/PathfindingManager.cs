@@ -54,7 +54,7 @@ public class PathfindingManager : MonoBehaviour
             {
                 finalPath = path;
                 unit.OnPathFound(path);
-                DrawPathLine();
+                //DrawPathLine(); // 게임씬의 이동 선 (흰색)
             }
         }
     }
