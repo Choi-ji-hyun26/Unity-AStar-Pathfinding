@@ -47,22 +47,11 @@ public class Unit : MonoBehaviour
 
         while (true)
         {
-            // 현재 목표 노드가 막힌 경우 즉시 재탐색 요청
-            if (!path[targetIndex].isWalkable)
-            {
-                PathfindingManager.Instance.RequestPath(
-                    transform.position,
-                    path[path.Count - 1].worldPosition,
-                    OnPathFound
-                );
-                yield break;
-            }
-
             Vector3 dir = (currentWayPoint - transform.position).normalized;
             float dist = Vector3.Distance(transform.position, currentWayPoint);
 
             // 물리 충돌 기반으로 경로 차단 여부 검사
-            if (Physics2D.CircleCast(transform.position, 0.2f, dir, dist, grid.wallMask))
+            if (!path[targetIndex].isWalkable || Physics2D.CircleCast(transform.position, 0.2f, dir, dist, grid.wallMask))
             {
                 PathfindingManager.Instance.RequestPath(
                     transform.position,
